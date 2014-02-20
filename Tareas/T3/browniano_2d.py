@@ -4,8 +4,10 @@ import sys
 
 try:
     n=int(sys.argv[1])
+except IndexError:
+    sys.exit("Se tiene que usar asi: python browniano_2D.py n, donde n es el numero de iteraciones")
 except ValueError:
-    sys.exit("Se tiene que poner un entero despues!")
+    sys.exit("El numero n de iteraciones debe ser un entero")
 
 r=1
 x=0
@@ -25,9 +27,9 @@ fig = plt.figure()
 ax = plt.axes()
 ax.set_xlabel("n")
 ax.set_ylabel("D")
-ax.set_title("Mov. Browniano")
+ax.set_title("Movimiento Browniano")
 
-plt.scatter(iteraciones, distancias, label="Hola Mundo")
+plt.plot(iteraciones,distancias,label="Distancia al origen")
 ax.legend()
 
 filename = 'browniano_2D_'+str(n)
