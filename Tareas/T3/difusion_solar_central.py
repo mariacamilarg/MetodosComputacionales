@@ -9,7 +9,7 @@ except IndexError:
 except ValueError:
     sys.exit("El numero n de iteraciones debe ser un entero.")
 
-R=100
+R=10**5
 r=1
 teta=0
 fi=0
