@@ -23,7 +23,7 @@ for i in range(n):
     z=0
     while(d<R):
         teta=random.random()*2*pi
-        fi=random.random()*2*pi
+        fi=random.random()*pi
         x+=r*sin(teta)*cos(fi)
         y+=r*sin(teta)*sin(fi)
         z+=r*cos(fi)
