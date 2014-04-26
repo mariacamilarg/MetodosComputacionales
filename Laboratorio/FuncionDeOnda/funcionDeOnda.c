@@ -16,7 +16,7 @@ int main(void) {
 	//Archivo
 	//primera linea: xs
 	//resto lineas: us
-	FILE *f = fopen("funcion_onda.dat","w");
+	FILE *f = fopen("funcionDeOnda.dat","w");
 
 	int n_points = 1000;
 	int n_iter = 4000;

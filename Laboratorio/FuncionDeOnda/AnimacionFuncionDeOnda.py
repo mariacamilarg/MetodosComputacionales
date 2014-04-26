@@ -9,7 +9,7 @@ from matplotlib import animation
 #FUNCIONES
 
 #IMPORTACION DATOS
-data=loadtxt("funcion_onda.dat")
+data=loadtxt("funcionDeOnda.dat")
 xs=data[0,:]
 
 #Initialization function: plot the background of each frame
@@ -19,7 +19,7 @@ def init():
 
 #Animation function.  This is called sequentially
 def animate(i):
-    us = data[1,:]
+    us = data[i,:]
     line.set_data(xs, us)
     return line,
 
