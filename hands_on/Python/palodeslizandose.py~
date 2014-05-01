@@ -1,0 +1,8 @@
+from math import sqrt
+
+i=0
+
+while i<1:
+    y=sqrt(1-x**2)
+    print x/2,y/2
+    i+=0.01
