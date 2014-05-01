@@ -1,0 +1,29 @@
+all: Resultado_galaxia_momento_0.pdf
+
+Resultado_galaxia_momento_0.pdf: plots.py resultado_galaxia_0.txt
+	python plots.py
+
+resultado_galaxia_0.txt: evolve.x condiciones_iniciales.txt
+	./evolve.x condiciones_iniciales.txt 5 5 
+
+evolve.x: evolve.c
+	cc evolve.c -lm -o evolve.x
+
+condiciones_iniciales.txt: condiciones_galaxia_0.txt condiciones_galaxia_-100.txt
+	cat condiciones_galaxia_0.txt condiciones_galaxia_-100.txt > condiciones_iniciales.txt
+
+condiciones_galaxia_0.txt: IC.x
+	./IC.x 0 0 0 0 0 0 1000000 20 1000
+
+condiciones_galaxia_-100.txt: IC.x
+	./IC.x 150 200 0 0 -100 0 1000000 20 1000
+
+IC.x: IC.c
+	cc IC.c -lm -o IC.x
+
+
+clean: 
+	rm *.txt *.pdf 
+
+cleanx: 
+	rm *.x	

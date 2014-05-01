@@ -1,0 +1,274 @@
+#include<stdlib.h>
+#include<stdio.h>
+#include<math.h>
+//Definiendo constantes universales
+#define G_GRAV 39.486 //Units UA3 y-2 msun-1
+#define Y2S 31556926 // conversion years to seconds 
+#define KPC2AU 206264806 // kpc to UA 
+#define AU2KM 149597871 // UA to Km
+#define PI 3.141592653589793 
+//Definiendo métodos necesarios
+float * get_memory(int n_points);
+float acceleration(char coor, float x, float y, float z, float M);
+float velocity(char coor, float vx, float vy, float vz);
+float runge_kutta(char dato, char coor, float xo, float yo, float zo, float vxo, float vyo, float vzo, float M, float dt);
+
+//main
+int main(int argc, char **argv){
+  //verificando número de argumentos
+  if(argc != 4){
+    printf("El número de argumentos debe ser de 3");
+    end(1);
+  }
+  int i;
+  //Guardando argumentos
+  char *filename = argv[1];
+  float tiempo = atof(argv[2]);//miles de millones de años 
+  int momentos = atoi(argv[3]);
+  FILE *in;
+  // Definiendo constantes del problema y alocando memoria
+  int n_div = 1000; //Divisiones entre momentos
+  float dt = tiempo*1000/(n_div*(momentos-1)); //Paso de tiempo en  millones de años
+  int m = (momentos-1)*n_div; //Numero de muestras 
+  float *M; //masa del centro de la galaxia en Msun
+  float *xo;// Distancias en Kpc
+  float *yo;
+  float *zo;
+  float *vxo;//Velocidades en km/s
+  float *vyo;
+  float *vzo;
+  float *ID; 
+
+  //definiendo posiciones y velocidades. Todas las masas estarán en un solo array
+  float *x;
+  float *y;
+  float *z;
+  float *vx;
+  float *vy;
+  float *vz;
+  
+  //Obteniendo condiciones iniciales del archivo
+  float N; //Numero de masas incluyendo los centros de las galaxias
+  in = fopen(filename, "r");
+  fscanf(in, "%f", &N);
+  fclose(in);
+  N = 0-N;
+
+  //Alocando memoria
+  M = get_memory(2*N+2);
+  xo = get_memory(2*N+2);
+  yo = get_memory(2*N+2);
+  zo = get_memory(2*N+2);
+  vxo = get_memory(2*N+2);
+  vyo = get_memory(2*N+2);
+  vzo = get_memory(2*N+2);
+  ID = get_memory(2*N*m+2*m); 
+  x = get_memory(2*N*m+2*m);
+  y = get_memory(2*N*m+2*m);
+  z = get_memory(2*N*m+2*m);
+  vx = get_memory(2*N*m+2*m);
+  vy = get_memory(2*N*m+2*m);
+  vz = get_memory(2*N*m+2*m);
+
+  
+  float test;
+  in = fopen(filename, "r");
+  i = 0;
+  do{
+    test = fscanf(in, "%f %f %f %f %f %f %f %f\n", &ID[i], &xo[i], &yo[i], &zo[i],&vxo[i],&vyo[i],&vzo[i], &M[i]);
+    if(test > -1){
+      i++;}
+  }while(test != EOF);
+  fclose(in);
+  N = i;
+  int j; 
+  int k;
+  
+
+  
+  //Realizando ciclo integración
+  for(i = 0;i < N; i++){
+    for(j = 0; j < m; j++){
+      if(j == 0){
+	x[j + i*m] = xo[i]*KPC2AU;//Convirtiendo a AU
+	y[j + i*m] = yo[i]*KPC2AU;
+	z[j + i*m] = zo[i]*KPC2AU;
+	vx[j + i*m] = vxo[i]*Y2S*1000000/(AU2KM);//Convirtiendo a AU/My
+	vy[j + i*m] = vyo[i]*Y2S*1000000/(AU2KM);
+        vz[j + i*m] = vzo[i]*Y2S*1000000/(AU2KM);
+	
+      }
+      else{
+	for(k = 0; k < N; k++){
+	  if(M[k] != 0){
+	    
+	    x[j + i*m] = runge_kutta('d','x',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	   
+	    vx[j + i*m] =  runge_kutta('v','x',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	    y[j + i*m] =runge_kutta('d','y',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	    vy[j + i*m] =runge_kutta('v','y',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	    z[j + i*m] = runge_kutta('d','z',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	    vz[j + i*m] =  runge_kutta('v','z',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],M[k],dt);
+	  }
+	}
+      }
+    } 
+  }
+
+
+  //Exportando resultados
+ for(j = 0; j < momentos; j++){
+   char str[200];
+   char jc[20];
+   sprintf(jc,"%d",j);
+   strcpy(str,"resultado_galaxia_");
+   strcat(str,jc);
+   strcat(str,".txt");
+   in = fopen(str,"w");
+   for(i = 0; i < N; i++){
+    fprintf(in, "%f ", ID[i]);
+    fprintf(in, "%f ", x[i*m + j*n_div]); 
+    fprintf(in, "%f ", y[i*m + j*n_div]); 
+    fprintf(in, "%f ", z[i*m + j*n_div]); 
+    fprintf(in, "%f ", vx[i*m + j*n_div]); 
+    fprintf(in, "%f ", vy[i*m + j*n_div]); 
+    fprintf(in, "%f ", vz[i*m + j*n_div]); 
+    fprintf(in,"\n");
+   }
+   fclose(in);
+ }
+ return 0;
+}
+//Metodo de reserva de memoria
+float * get_memory(int n_points){
+  float *x;
+  if(!(x = malloc(sizeof(float)*n_points))){
+    printf("Problem with memory allocation");
+    
+}
+  return x;
+}
+//Metodo de aceleracion para runge kutta.Distancias en AU, aceleraciones en AU/My2
+float acceleration(char coor, float x, float y, float z, float M){
+  float c;
+  if(coor == 'x'){
+    c = x;}
+  if(coor == 'y'){
+    c = y;}
+  if(coor == 'z'){
+    c = z;}
+  if(pow(x*x+y*y+z*z,3)>0){	
+  return -1*G_GRAV*M*c*pow(1000000,2)/pow((x*x+y*y+z*z),1.5);
+}
+else{return 0;}
+}
+// Metodo de velocidad para runge kutta. Sale con las unidades que entra. 
+float velocity(char coor, float vx, float vy, float vz){
+ float c;
+  if(coor == 'x'){
+    c = vx;}
+  if(coor == 'y'){
+    c = vy;}
+  if(coor == 'z'){
+    c = vz;}
+  return c;
+}
+// Metodo de integracion.distancias en AU, velocidades en AU/My
+float runge_kutta(char dato, char coor, float xant, float yant, float zant, float vxant, float vyant, float vzant, float M, float dt){
+  
+  float c;
+  float vc;
+  
+  if(coor == 'x'){
+    c = xant;
+    vc = vxant;}
+  
+  if(coor == 'y'){
+    c = yant;
+    vc = vyant;}
+  if(coor == 'z'){
+    c = zant;
+    vc = vzant;}
+  //Declarando pendientes
+  float k_1_v;
+  float k_1_a;
+  float k_2_v;
+  float k_2_a;
+  float k_3_v;
+  float k_3_a;
+  float k_4_v;
+  float k_4_a;
+  
+  //Paso 0
+  k_1_v = velocity(coor, vxant, vyant, vzant);
+  k_1_a = acceleration(coor , xant,yant,zant,M);
+ 
+  //Paso 1
+  c += dt/2*k_1_v;
+  vc += k_1_a*dt/2;
+  if(coor == 'x'){
+    xant = c;
+    vxant = vc;
+    k_2_v = velocity(coor, vxant, vyant, vzant);
+    k_2_a = acceleration(coor , xant,yant,zant,M);  }
+  if(coor == 'y'){
+    yant = c;
+    vyant = vc;
+    k_2_v = velocity(coor, vxant, vyant, vzant);
+    k_2_a = acceleration(coor , xant,yant,zant,M); }
+  if(coor == 'z'){
+    zant = c;
+    vzant = vc;
+    k_2_v = velocity(coor, vxant, vyant, vzant);
+    k_2_a = acceleration(coor , xant,yant,zant,M); }
+  
+  //Paso 2
+  c += -dt/2*k_1_v + dt/2*k_2_v;
+  vc += -k_1_a*dt/2 + dt/2*k_2_a;
+  if(coor == 'x'){
+    xant = c;
+    vxant = vc;
+    k_3_v = velocity(coor, vxant, vyant, vzant);
+    k_3_a = acceleration(coor , xant,yant,zant,M);  }
+  if(coor == 'y'){
+    yant = c;
+    vyant = vc;
+    k_3_v = velocity(coor, vxant, vyant, vzant);
+    k_3_a = acceleration(coor , xant,yant,zant,M); }
+  if(coor == 'z'){
+    zant = c;
+    vzant = vc;
+    k_3_v = velocity(coor, vxant, vyant, vzant);
+    k_3_a = acceleration(coor , xant,yant,zant,M); }
+
+  //Paso 3
+  c += -dt/2*k_2_v + dt*k_3_v;
+  vc += -k_2_a*dt/2 + dt*k_3_a;
+  if(coor == 'x'){
+    xant = c;
+    vxant = vc;
+    k_4_v = velocity(coor, vxant, vyant, vzant);
+    k_4_a = acceleration(coor , xant,yant,zant,M); }
+  if(coor == 'y'){
+    yant = c;
+    vyant = vc;
+    k_4_v = velocity(coor, vxant, vyant, vzant);
+    k_4_a = acceleration(coor , xant,yant,zant,M); }
+  if(coor == 'z'){
+    zant = c;
+    vzant = vc;
+    k_4_v = velocity(coor, vxant, vyant, vzant);
+    k_4_a = acceleration(coor , xant,yant,zant,M); }
+
+  //Paso 4
+  float k_v_average = (k_1_v+2*k_2_v+2*k_3_v+k_4_v)/6;
+  float k_a_average = (k_1_a+2*k_2_a+2*k_3_a+k_4_a)/6;
+
+  c += -dt*k_3_v + dt*k_v_average;
+  vc += -k_3_a*dt + dt*k_a_average;
+
+  if(dato == 'd'){
+    return c;}
+  else{return vc;}
+  
+}
