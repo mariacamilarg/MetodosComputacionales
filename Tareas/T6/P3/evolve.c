@@ -2,7 +2,7 @@
 #include<stdio.h>
 #include<math.h>
 //Definiendo constantes universales
-#define G_GRAV 39.486 //Units UA3 y-2 msun-1
+#define G_GRAV 0.000004302 //Units kpc (km/s)2 msun-1
 #define Y2S 31556926 // conversion years to seconds 
 #define KPC2AU 206264806 // kpc to UA 
 #define AU2KM 149597871 // UA to Km
@@ -11,10 +11,11 @@
 float * get_memory(int n_points);
 float acceleration(char coor, float x, float y, float z,float xo, float yo, float zo, float M);
 float velocity(char coor, float vx, float vy, float vz);
-float runge_kutta(char dato, char coor, float xant, float yant, float zant, float vxant, float vyant, float vzant,float xo, float yo, float zo, float M, float dt);
+float runge_kutta(char dato, char coor, float xant, float yant, float zant, float vxant, float vyant, float vzant,float *xo, float *yo, float *zo, float *M, float dt, int negras);
 
 //main
 int main(int argc, char **argv){
+  
   //verificando número de argumentos
   if(argc != 4){
     printf("El número de argumentos debe ser de 3");
@@ -53,7 +54,7 @@ int main(int argc, char **argv){
   fscanf(in, "%f", &N);
   fclose(in);
   N = 0-N;
-
+  
   //Alocando memoria
   M = get_memory(2*N+2);
   xo = get_memory(2*N+2);
@@ -69,8 +70,9 @@ int main(int argc, char **argv){
   vx = get_memory(2*N*m+2*m);
   vy = get_memory(2*N*m+2*m);
   vz = get_memory(2*N*m+2*m);
-
   
+  
+  //obteniendo condiciones iniciales
   float test;
   in = fopen(filename, "r");
   i = 0;
@@ -81,40 +83,62 @@ int main(int argc, char **argv){
   }while(test != EOF);
   fclose(in);
   N = i;
-  int j; 
-  int k;
+  
+  //Declarando arrays de masas negras
+  float *Mn = get_memory(N); //masa en msun
+  float *nxo = get_memory(N);//posicion inicial en kpc
+  float *nyo = get_memory(N);
+  float *nzo = get_memory(N);
+  int negras = 0;
+  
+  for(i = 0; i < N; i++){
+  
+    if(M[i] != 0){
+      Mn[i]= M[i];
+      nxo[i]=  xo[i];
+      nyo[i] = yo[i];
+      nzo[i] = zo[i];
+      negras ++;
+    }
+
+  }
   
 
+  int j;
   
   //Realizando ciclo integración
-  for(i = 0;i < N; i++){
-    for(j = 0; j < m; j++){
-      if(j == 0){
-	x[j + i*m] = xo[i]*KPC2AU;//Convirtiendo a AU
-	y[j + i*m] = yo[i]*KPC2AU;
-	z[j + i*m] = zo[i]*KPC2AU;
-	vx[j + i*m] = vxo[i]*Y2S*1000000/(AU2KM);//Convirtiendo a AU/My
-	vy[j + i*m] = vyo[i]*Y2S*1000000/(AU2KM);
-        vz[j + i*m] = vzo[i]*Y2S*1000000/(AU2KM);
-	
-      }
-      else{
-	for(k = 0; k < N; k++){
-	  if(M[k] != 0){
-	    x[j + i*m] = runge_kutta('d','x',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	    vx[j + i*m] =  runge_kutta('v','x',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	    y[j + i*m] =runge_kutta('d','y',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	    vy[j + i*m] =runge_kutta('v','y',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	    z[j + i*m] = runge_kutta('d','z',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	    vz[j + i*m] =  runge_kutta('v','z',x[j + i*m -1],y[j + i*m -1],z[j + i*m -1],vx[j + i*m -1],vy[j + i*m -1],vz[j + i*m -1],x[j+k*m-1],y[j+k*m-1],z[j+k*m-1],M[k],dt);
-	  }
-	}
-      }
-    } 
-  }
+  for(i = 0; i < m; i++){
+    int k = 0;
+    for(j = 0; j < N; j++){
+      if(i == 0){
 
+	x[j*m + i] = xo[j];
+	y[j*m+i] = yo[j];
+	z[j*m+i] = zo[j];
+	vx[j*m+i] = vxo[j]*Y2S*1000000/(AU2KM*KPC2AU);//KPC/My
+	vy[j*m+i] = vyo[j]*Y2S*1000000/(AU2KM*KPC2AU);
+	vz[j*m+i] = vzo[j]*Y2S*1000000/(AU2KM*KPC2AU);
+				  	   
+	}
+      else{
+	x[j*m + i] = runge_kutta('d','x',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	y[j*m + i] = runge_kutta('d','y',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	z[j*m + i] = runge_kutta('d','z',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	vx[j*m + i] = runge_kutta('v','x',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	vy[j*m + i] = runge_kutta('v','y',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	vz[j*m + i] = runge_kutta('v','z',x[j*m + i -1],y[j*m + i -1], z[j*m + i -1], vx[j*m + i -1], vy[j*m + i -1], vz[j*m + i -1], nxo,nyo,nzo, Mn, dt, negras);
+	if(M[j] != 0){
+	  nxo[k] = x[j*m + i];
+	  nyo[k] = y[j*m + i];
+	  nzo[k] = z[j*m + i];
+	  }
+	  }
+    }
+  }
+  
 
   //Exportando resultados
+  
  for(j = 0; j < momentos; j++){
    char str[200];
    char jc[20];
@@ -126,7 +150,7 @@ int main(int argc, char **argv){
    for(i = 0; i < N; i++){
     fprintf(in, "%f ", ID[i]);
     fprintf(in, "%f ", x[i*m + j*n_div]); 
-    fprintf(in, "%f ", y[i*m + j*n_div]); 
+    fprintf(in, "%f ", y[i*m + j*n_div]);
     fprintf(in, "%f ", z[i*m + j*n_div]); 
     fprintf(in, "%f ", vx[i*m + j*n_div]); 
     fprintf(in, "%f ", vy[i*m + j*n_div]); 
@@ -135,7 +159,9 @@ int main(int argc, char **argv){
    }
    fclose(in);
  }
+  
  return 0;
+  
 }
 //Metodo de reserva de memoria
 float * get_memory(int n_points){
@@ -146,7 +172,7 @@ float * get_memory(int n_points){
 }
   return x;
 }
-//Metodo de aceleracion para runge kutta.Distancias en AU, aceleraciones en AU/My2
+//Metodo de aceleracion para runge kutta.Distancias en KPC, aceleraciones en KPC/My2
 float acceleration(char coor, float x, float y, float z,float xo, float yo, float zo, float M){
   float c;
   float co;
@@ -160,7 +186,7 @@ float acceleration(char coor, float x, float y, float z,float xo, float yo, floa
     c = z;
     co = zo;}
   if(pow(x-xo,2)+pow(y-yo,2)+pow(z-zo,2) > 0){
-    return -1*G_GRAV*M*(c-co)*pow(1000000,2)/pow(pow(x-xo,2)+pow(y-yo,2)+pow(z-zo,2),1.5);}
+    return -1*G_GRAV*M*(c-co)*pow(1000000,2)*(1/pow(AU2KM*KPC2AU,2))*(Y2S*Y2S)/pow(pow(x-xo,2)+pow(y-yo,2)+pow(z-zo,2),1.5);}
   else{return 0.0;}
 }
 // Metodo de velocidad para runge kutta. Sale con las unidades que entra. 
@@ -175,7 +201,7 @@ float velocity(char coor, float vx, float vy, float vz){
   return c;
 }
 // Metodo de integracion.distancias en AU, velocidades en AU/My
-float runge_kutta(char dato, char coor, float xant, float yant, float zant, float vxant, float vyant, float vzant,float xo, float yo, float zo, float M, float dt){
+float runge_kutta(char dato, char coor, float xant, float yant, float zant, float vxant, float vyant, float vzant,float *xo, float *yo, float *zo, float *M, float dt, int negras){
   
   float c;
   float vc;
@@ -191,19 +217,21 @@ float runge_kutta(char dato, char coor, float xant, float yant, float zant, floa
     c = zant;
     vc = vzant;}
   //Declarando pendientes
-  float k_1_v;
-  float k_1_a;
-  float k_2_v;
-  float k_2_a;
-  float k_3_v;
-  float k_3_a;
-  float k_4_v;
-  float k_4_a;
-  
+  float k_1_v = 0;
+  float k_1_a = 0;
+  float k_2_v = 0;
+  float k_2_a = 0;
+  float k_3_v = 0;
+  float k_3_a = 0;
+  float k_4_v = 0;
+  float k_4_a = 0;
+  int i;
+
   //Paso 0
   k_1_v = velocity(coor, vxant, vyant, vzant);
-  k_1_a = acceleration(coor , xant,yant,zant,xo, yo, zo,M);
- 
+  for(i = 0; i < negras; i++){
+  k_1_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+  }
   //Paso 1
   c += dt/2*k_1_v;
   vc += k_1_a*dt/2;
@@ -211,17 +239,26 @@ float runge_kutta(char dato, char coor, float xant, float yant, float zant, floa
     xant = c;
     vxant = vc;
     k_2_v = velocity(coor, vxant, vyant, vzant);
-    k_2_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M);  }
+    for(i = 0; i < negras; i++){
+      k_2_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'y'){
     yant = c;
     vyant = vc;
     k_2_v = velocity(coor, vxant, vyant, vzant);
-    k_2_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+    for(i = 0; i < negras; i++){
+      k_2_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'z'){
     zant = c;
     vzant = vc;
     k_2_v = velocity(coor, vxant, vyant, vzant);
-    k_2_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+    for(i = 0; i < negras; i++){
+      k_2_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   
   //Paso 2
   c += -dt/2*k_1_v + dt/2*k_2_v;
@@ -230,17 +267,26 @@ float runge_kutta(char dato, char coor, float xant, float yant, float zant, floa
     xant = c;
     vxant = vc;
     k_3_v = velocity(coor, vxant, vyant, vzant);
-    k_3_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M);  }
+     for(i = 0; i < negras; i++){
+      k_3_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'y'){
     yant = c;
     vyant = vc;
     k_3_v = velocity(coor, vxant, vyant, vzant);
-    k_3_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+    for(i = 0; i < negras; i++){
+      k_3_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'z'){
     zant = c;
     vzant = vc;
     k_3_v = velocity(coor, vxant, vyant, vzant);
-    k_3_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+    for(i = 0; i < negras; i++){
+      k_3_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
 
   //Paso 3
   c += -dt/2*k_2_v + dt*k_3_v;
@@ -249,25 +295,33 @@ float runge_kutta(char dato, char coor, float xant, float yant, float zant, floa
     xant = c;
     vxant = vc;
     k_4_v = velocity(coor, vxant, vyant, vzant);
-    k_4_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+    for(i = 0; i < negras; i++){
+      k_4_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'y'){
     yant = c;
     vyant = vc;
     k_4_v = velocity(coor, vxant, vyant, vzant);
-    k_4_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
+   for(i = 0; i < negras; i++){
+      k_4_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   if(coor == 'z'){
     zant = c;
     vzant = vc;
     k_4_v = velocity(coor, vxant, vyant, vzant);
-    k_4_a = acceleration(coor , xant,yant,zant,xo,yo,zo,M); }
-
+    for(i = 0; i < negras; i++){
+      k_4_a += acceleration(coor , xant,yant,zant,xo[i], yo[i], zo[i],M[i]);
+    } 
+  }
   //Paso 4
   float k_v_average = (k_1_v+2*k_2_v+2*k_3_v+k_4_v)/6;
   float k_a_average = (k_1_a+2*k_2_a+2*k_3_a+k_4_a)/6;
-
+ 
   c += -dt*k_3_v + dt*k_v_average;
   vc += -k_3_a*dt + dt*k_a_average;
-
+ 
   if(dato == 'd'){
     return c;}
   else{return vc;}
